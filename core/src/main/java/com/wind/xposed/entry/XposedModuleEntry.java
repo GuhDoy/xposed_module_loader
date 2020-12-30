@@ -9,6 +9,7 @@ import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
+import android.widget.Toast;
 
 import com.wind.xposed.entry.util.FileUtils;
 import com.wind.xposed.entry.util.PackageNameCache;
@@ -33,6 +34,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import de.robv.android.xposed.XposedHelper;
 
+import static com.swift.sandhook.xposedcompat.XposedCompat.context;
+import static com.wind.xposed.entry.util.FileUtils.copyFileFromAssets;
+import static com.wind.xposed.entry.util.FileUtils.readTextFromAssets;
+
 /**
  * Created by Wind
  */
@@ -42,7 +47,7 @@ public class XposedModuleEntry {
 
     private static AtomicBoolean hasInited = new AtomicBoolean(false);
 
-    private static final String DIR_BASE = Environment.getExternalStorageDirectory().getAbsolutePath();
+    private static final String DIR_BASE = context.getExternalFilesDir(null).getAbsolutePath();
 
     private static final String XPOSED_MODULE_FILE_PATH = "xposed_config/modules.list";
 
@@ -71,13 +76,6 @@ public class XposedModuleEntry {
 
         appContext = context;
 
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
-            if (!FileUtils.isFilePermissionGranted(context)) {
-                android.util.Log.e(TAG, "File permission is not granted, can not control xposed module by file ->" +
-                        XPOSED_MODULE_FILE_PATH);
-            }
-        }
-
         initSELinux(context);
 
         SharedPrefUtils.init(context);
@@ -94,7 +92,7 @@ public class XposedModuleEntry {
         insertXposedModulesFromLibPath(context, modulePathList);
 
         // 过滤掉已经打包在apk中的module，避免同一个module被加载了两次
-        if (installedModulePathList != null && installedModulePathList.size() > 0) {
+        if (installedModulePathList.size() > 0) {
             List<String> packedModulePakcageNameList = null;
 
             for (String apkPath : modulePathList) {
@@ -132,7 +130,7 @@ public class XposedModuleEntry {
         return PackageNameCache.getInstance(context).getPackageNameByPath(apkPath);
     }
 
-        // insert xposed modules saved in the lib path
+    // insert xposed modules saved in the lib path
     private static void insertXposedModulesFromLibPath(Context context, List<String> modulePathList) {
         String libPath = context.getApplicationInfo().nativeLibraryDir;
         XLog.d(TAG, "Current loaded module libPath ----> " + libPath);
@@ -267,15 +265,19 @@ public class XposedModuleEntry {
 
         FileOutputStream outputStream = null;
         BufferedWriter writer = null;
+
+        String original_module_list = readTextFromAssets(context, "xpatch_asset/original_module_list.ini");
         try {
             outputStream = new FileOutputStream(moduleFile, true);
             writer = new BufferedWriter(new OutputStreamWriter(outputStream));
-
-            for (Pair<String, String> packageInfo : packageNameList) {
-                String packageName = packageInfo.first;
-                String appName = packageInfo.second;
-                writer.write("\n\n" + packageName + "#" + appName);
-            }
+            if (original_module_list == null || "".equals(original_module_list))
+                for (Pair<String, String> packageInfo : packageNameList) {
+                    String packageName = packageInfo.first;
+                    String appName = packageInfo.second;
+                    writer.write("\n\n" + packageName + "#" + appName);
+                }
+            else
+                copyFileFromAssets(context, "xpatch_asset/original_module_list.ini", moduleFile.getPath());
             writer.flush();
         } catch (Exception e) {
             e.printStackTrace();
