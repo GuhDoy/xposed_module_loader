@@ -11,6 +11,7 @@ import android.util.Log;
 import android.util.Pair;
 import android.widget.Toast;
 
+import com.swift.sandhook.xposedcompat.XposedCompat;
 import com.wind.xposed.entry.util.FileUtils;
 import com.wind.xposed.entry.util.PackageNameCache;
 import com.wind.xposed.entry.util.ReflectionApiCheck;
@@ -47,7 +48,7 @@ public class XposedModuleEntry {
 
     private static AtomicBoolean hasInited = new AtomicBoolean(false);
 
-    private static final String DIR_BASE = context.getExternalFilesDir(null).getAbsolutePath();
+    private static final String DIR_BASE = XposedCompat.context.getExternalFilesDir(null).getAbsolutePath();
 
     private static final String XPOSED_MODULE_FILE_PATH = "xposed_config/modules.list";
 
@@ -190,6 +191,12 @@ public class XposedModuleEntry {
         new Thread(new Runnable() {
             @Override
             public void run() {
+                File moduleFile = new File(DIR_BASE, XPOSED_MODULE_FILE_PATH);
+                if (!moduleFile.exists()) moduleFile.getParentFile().mkdirs();
+                String original_module_list = readTextFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini");
+                if (original_module_list != null)
+                    copyFileFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini", moduleFile.getPath());
+
                 List<String> savedPackageNameList = loadPackageNameListFromFile(false);
                 if (savedPackageNameList == null) {
                     savedPackageNameList = new ArrayList<>();
@@ -265,19 +272,15 @@ public class XposedModuleEntry {
 
         FileOutputStream outputStream = null;
         BufferedWriter writer = null;
-
-        String original_module_list = readTextFromAssets(context, "xpatch_asset/original_module_list.ini");
         try {
             outputStream = new FileOutputStream(moduleFile, true);
             writer = new BufferedWriter(new OutputStreamWriter(outputStream));
-            if (original_module_list == null || "".equals(original_module_list))
-                for (Pair<String, String> packageInfo : packageNameList) {
-                    String packageName = packageInfo.first;
-                    String appName = packageInfo.second;
-                    writer.write("\n\n" + packageName + "#" + appName);
-                }
-            else
-                copyFileFromAssets(context, "xpatch_asset/original_module_list.ini", moduleFile.getPath());
+
+            for (Pair<String, String> packageInfo : packageNameList) {
+                String packageName = packageInfo.first;
+                String appName = packageInfo.second;
+                writer.write("\n\n" + packageName + "#" + appName);
+            }
             writer.flush();
         } catch (Exception e) {
             e.printStackTrace();
