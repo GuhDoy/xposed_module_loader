@@ -192,10 +192,12 @@ public class XposedModuleEntry {
             @Override
             public void run() {
                 File moduleFile = new File(DIR_BASE, XPOSED_MODULE_FILE_PATH);
-                if (!moduleFile.exists()) moduleFile.getParentFile().mkdirs();
-                String original_module_list = readTextFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini");
-                if (original_module_list != null)
-                    copyFileFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini", moduleFile.getPath());
+                if (!moduleFile.exists()) {
+                    moduleFile.getParentFile().mkdirs();
+                    String original_module_list = readTextFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini");
+                    if (original_module_list != null)
+                        copyFileFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini", moduleFile.getPath());
+                }
 
                 List<String> savedPackageNameList = loadPackageNameListFromFile(false);
                 if (savedPackageNameList == null) {
