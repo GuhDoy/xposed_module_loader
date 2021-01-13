@@ -14,7 +14,6 @@ import android.widget.Toast;
 import com.swift.sandhook.xposedcompat.XposedCompat;
 import com.wind.xposed.entry.util.FileUtils;
 import com.wind.xposed.entry.util.PackageNameCache;
-import com.wind.xposed.entry.util.ReflectionApiCheck;
 import com.wind.xposed.entry.util.SharedPrefUtils;
 import com.wind.xposed.entry.util.XLog;
 import com.wind.xposed.entry.util.XpatchUtils;
@@ -34,6 +33,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import de.robv.android.xposed.XposedHelper;
+import me.weishu.reflection.Reflection;
 
 import static com.swift.sandhook.xposedcompat.XposedCompat.context;
 import static com.wind.xposed.entry.util.FileUtils.copyFileFromAssets;
@@ -61,9 +61,8 @@ public class XposedModuleEntry {
             return;
         }
 
-        ReflectionApiCheck.unseal();
-
         Context context = XpatchUtils.createAppContext();
+        Reflection.unseal(context);
         SandHookInitialization.init(context);
         init(context);
     }
@@ -167,7 +166,8 @@ public class XposedModuleEntry {
 
         boolean configFileExist = configFileExist();
 
-        for (PackageInfo pkg : pm.getInstalledPackages(PackageManager.GET_META_DATA)) {
+        List<PackageInfo> packageInfoList = pm.getInstalledPackages(PackageManager.GET_META_DATA);
+        for (PackageInfo pkg : packageInfoList) {
             ApplicationInfo app = pkg.applicationInfo;
             if (!app.enabled)
                 continue;
@@ -192,12 +192,10 @@ public class XposedModuleEntry {
             @Override
             public void run() {
                 File moduleFile = new File(DIR_BASE, XPOSED_MODULE_FILE_PATH);
-                if (!moduleFile.exists()) {
-                    moduleFile.getParentFile().mkdirs();
-                    String original_module_list = readTextFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini");
-                    if (original_module_list != null)
-                        copyFileFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini", moduleFile.getPath());
-                }
+                if (!moduleFile.exists()) moduleFile.getParentFile().mkdirs();
+                String original_module_list = readTextFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini");
+                if (original_module_list != null)
+                    copyFileFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini", moduleFile.getPath());
 
                 List<String> savedPackageNameList = loadPackageNameListFromFile(false);
                 if (savedPackageNameList == null) {
