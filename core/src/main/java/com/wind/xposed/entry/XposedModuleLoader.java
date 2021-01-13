@@ -11,7 +11,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
+import dalvik.system.DelegateLastClassLoader;
 import dalvik.system.DexClassLoader;
+import dalvik.system.PathClassLoader;
 import de.robv.android.xposed.IXposedHookInitPackageResources;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -24,7 +26,7 @@ public class XposedModuleLoader {
     private static final String TAG = "XposedModuleLoader";
 
     public static boolean loadModule(final String moduleApkPath, String moduleOdexDir, String moduleLibPath,
-                                 final ApplicationInfo currentApplicationInfo, ClassLoader appClassLoader) {
+                                     final ApplicationInfo currentApplicationInfo, ClassLoader appClassLoader) {
 
         XLog.i(TAG, "Loading modules from " + moduleApkPath);
 
@@ -33,7 +35,7 @@ public class XposedModuleLoader {
             return false;
         }
 
-        ClassLoader mcl = new DexClassLoader(moduleApkPath, moduleOdexDir, moduleLibPath, appClassLoader);
+        ClassLoader mcl = new com.wind.xposed.entry.util.DelegateLastClassLoader(moduleApkPath, moduleLibPath, XposedBridge.BOOTCLASSLOADER);
         InputStream is = mcl.getResourceAsStream("assets/xposed_init");
         if (is == null) {
             Log.i(TAG, "assets/xposed_init not found in the APK");
@@ -72,7 +74,7 @@ public class XposedModuleLoader {
                         xc_loadPackageCopyOnWriteSortedSet.add(wrapper);
                         XC_LoadPackage.LoadPackageParam lpparam = new XC_LoadPackage.LoadPackageParam(xc_loadPackageCopyOnWriteSortedSet);
                         lpparam.packageName = currentApplicationInfo.packageName;
-                        lpparam.processName = (String)Class.forName("android.app.ActivityThread").getDeclaredMethod("currentProcessName").invoke(null);
+                        lpparam.processName = (String) Class.forName("android.app.ActivityThread").getDeclaredMethod("currentProcessName").invoke(null);
                         lpparam.classLoader = appClassLoader;
                         lpparam.appInfo = currentApplicationInfo;
                         lpparam.isFirstApplication = true;
