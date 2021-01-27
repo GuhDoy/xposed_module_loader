@@ -2,19 +2,40 @@ package com.wind.xpatch.proxy;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.TextUtils;
 import android.util.Log;
+import android.widget.Toast;
 
+import com.wanjian.cockroach.Cockroach;
+import com.wanjian.cockroach.ExceptionHandler;
 import com.wind.xposed.entry.SandHookInitialization;
 import com.wind.xposed.entry.util.FileUtils;
 import com.wind.xposed.entry.util.ReflectionApiCheck;
 import com.wind.xposed.entry.util.XpatchUtils;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
+import static com.wind.xposed.entry.XposedModuleEntry.getAppContext;
 import static com.wind.xposed.entry.XposedModuleEntry.init;
 
 /**
@@ -118,7 +139,103 @@ public class XpatchProxyApplication extends Application {
             replaceActivityThread_Applicatio();
 
             sOriginalApplication.onCreate();
+
+            install();
         }
+    }
+
+    private void install() {
+        Cockroach.install(sOriginalApplication, new ExceptionHandler() {
+            @Override
+            protected void onUncaughtExceptionHappened(Thread thread, final Throwable throwable) {
+                Log.e("AndroidRuntime", "--->onUncaughtExceptionHappened:" + thread + "<---", throwable);
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(sOriginalApplication, "捕获到导致崩溃的异常\n" + Log.getStackTraceString(throwable), Toast.LENGTH_LONG).show();
+                        try {
+                            FileOutputStream outputStream = new FileOutputStream(new File(sOriginalApplication.getExternalFilesDir(null).getAbsolutePath() + File.separator + "XpatchCrashLog.txt"));
+                            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
+                            writer.write(collectDeviceInfo(sOriginalApplication, throwable));
+                            writer.flush();
+                            outputStream.close();
+                            writer.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+            }
+
+            @Override
+            protected void onBandageExceptionHappened(Throwable throwable) {
+                throwable.printStackTrace();//打印警告级别log，该throwable可能是最开始的bug导致的，无需关心
+                Toast.makeText(sOriginalApplication, "Cockroach Worked", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            protected void onEnterSafeMode() {
+                Toast.makeText(sOriginalApplication, "已经进入安全模式", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            protected void onMayBeBlackScreen(Throwable e) {
+                Thread thread = Looper.getMainLooper().getThread();
+                Log.e("AndroidRuntime", "--->onUncaughtExceptionHappened:" + thread + "<---", e);
+                //黑屏时建议直接杀死app
+                Thread.getDefaultUncaughtExceptionHandler().uncaughtException(thread, new RuntimeException("black screen"));
+            }
+        });
+    }
+
+    private String collectDeviceInfo(Context c, Throwable ex) {
+        Map<String, String> infos = new HashMap<String, String>();
+        // 收集版本信息
+        try {
+            PackageManager pm = c.getPackageManager();
+            PackageInfo pi = pm.getPackageInfo(c.getPackageName(), PackageManager.GET_ACTIVITIES);
+            if (pi != null) {
+                String versionCode = pi.versionCode + "";
+                String versionName = TextUtils.isEmpty(pi.versionName) ? "没有版本名称" : pi.versionName;
+                infos.put("versionCode", versionCode);
+                infos.put("versionName", versionName);
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        // 收集设备信息
+        Field[] fields = Build.class.getDeclaredFields();
+        for (Field field : fields) {
+            try {
+                field.setAccessible(true);
+                infos.put(field.getName(), field.get(null).toString());
+            } catch (Exception e) {
+            }
+        }
+
+        // 收集异常信息
+        Writer writer = new StringWriter();
+        PrintWriter printWriter = new PrintWriter(writer);
+        ex.printStackTrace(printWriter);
+        Throwable cause = ex.getCause();
+        while (cause != null) {
+            cause.printStackTrace(printWriter);
+            cause = cause.getCause();
+        }
+        printWriter.close();
+        String result = writer.toString();
+
+        // 转化为字符串
+        StringBuffer sb = new StringBuffer();
+        for (Map.Entry<String, String> entry : infos.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            sb.append(key + "=" + value + "\n");
+        }
+        sb.append(result);
+
+        return sb.toString();
     }
 
     private void replaceLoadedApk_Application() {
