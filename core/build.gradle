@@ -40,6 +40,7 @@ dependencies {
 //    sandhookImplementation 'com.swift.sandhook:xposedcompat:4.2.0'
 
     sandhookImplementation(name: 'hooklib', ext: 'aar')
+    sandhookImplementation(name: 'nativehook', ext: 'aar')
     sandhookImplementation(name: 'xposedcompat', ext: 'aar')
     sandhookImplementation 'com.jakewharton.android.repackaged:dalvik-dx:9.0.0_r3'
 
