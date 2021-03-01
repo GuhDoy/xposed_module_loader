@@ -4,12 +4,9 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.os.Build;
-import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
-import android.widget.Toast;
 
 import com.swift.sandhook.xposedcompat.XposedCompat;
 import com.wind.xposed.entry.util.FileUtils;
@@ -34,10 +31,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import de.robv.android.xposed.XposedHelper;
 import me.weishu.reflection.Reflection;
-
-import static com.swift.sandhook.xposedcompat.XposedCompat.context;
-import static com.wind.xposed.entry.util.FileUtils.copyFileFromAssets;
-import static com.wind.xposed.entry.util.FileUtils.readTextFromAssets;
 
 /**
  * Created by Wind
@@ -194,9 +187,9 @@ public class XposedModuleEntry {
                 File moduleFile = new File(DIR_BASE, XPOSED_MODULE_FILE_PATH);
                 if (!moduleFile.exists()) {
                     moduleFile.getParentFile().mkdirs();
-                    String original_module_list = readTextFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini");
+                    String original_module_list = FileUtils.readTextFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini");
                     if (original_module_list != null)
-                        copyFileFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini", moduleFile.getPath());
+                        FileUtils.copyFileFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini", moduleFile.getPath());
                 }
 
                 List<String> savedPackageNameList = loadPackageNameListFromFile(false);

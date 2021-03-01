@@ -64,10 +64,10 @@ public class FileUtils {
 
     public static void copyFileFromAssets(Context context, String assetsFilePath, String targetFileFullPath) {
         Log.d("Tag", "copyFileFromAssets ");
-        InputStream assestsFileImputStream;
+        InputStream assetsFileInputStream;
         try {
-            assestsFileImputStream = context.getAssets().open(assetsFilePath);
-            copyFile(assestsFileImputStream, targetFileFullPath);
+            assetsFileInputStream = context.getAssets().open(assetsFilePath);
+            copyFile(assetsFileInputStream, targetFileFullPath);
         } catch (IOException e) {
             Log.d("Tag", "copyFileFromAssets " + "IOException-" + e.getMessage());
             e.printStackTrace();

@@ -1,6 +1,7 @@
 package com.wind.xposed.entry.hooker;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
@@ -10,10 +11,16 @@ import android.os.Build;
 import com.wind.xposed.entry.XposedModuleEntry;
 import com.wind.xposed.entry.util.FileUtils;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Map;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
@@ -34,9 +41,51 @@ public class PackageSignatureHooker implements IXposedHookLoadPackage {
             return;
         }
 
-        // hookSignatureByXposed(lpparam, originalSignature);  //不稳定  暂时不使用
-        hookSignatureByProxy(lpparam, originalSignature, context);
+        try {
+            context.getAssets().open("xpatch_asset/original_app.apk");
+            hookSignatureByXposed(lpparam, originalSignature);  //不稳定  暂时不使用
+            replaceApp(context);
+        } catch (FileNotFoundException e) {
+            hookSignatureByProxy(lpparam, originalSignature, context);
+        }
+    }
 
+    private void replaceApp(Context context) {
+        try {
+            File fileStreamPath = context.getFileStreamPath("base.apk");
+            if (!fileStreamPath.exists()) {
+                InputStream open = context.getAssets().open("xpatch_asset/original_app.apk");
+                FileOutputStream fileOutputStream = new FileOutputStream(fileStreamPath);
+                byte[] bArr = new byte[1024];
+                for (int i = 0; i != -1; i = open.read(bArr)) {
+                    fileOutputStream.write(bArr, 0, i);
+                    fileOutputStream.flush();
+                }
+                open.close();
+                fileOutputStream.close();
+            }
+            if (fileStreamPath != null && fileStreamPath.exists()) {
+                String path = fileStreamPath.getPath();
+                context.getClassLoader();
+                Field declaredField = ClassLoader.getSystemClassLoader().loadClass("android.app.ActivityThread").getDeclaredField("sCurrentActivityThread");
+                declaredField.setAccessible(true);
+                Object obj = declaredField.get((Object) null);
+                Field declaredField2 = obj.getClass().getDeclaredField("mPackages");
+                declaredField2.setAccessible(true);
+                Object obj2 = ((WeakReference<?>) ((Map<?, ?>) declaredField2.get(obj)).get(context.getPackageName())).get();
+                Field declaredField3 = obj2.getClass().getDeclaredField("mAppDir");
+                declaredField3.setAccessible(true);
+                declaredField3.set(obj2, path);
+                Field declaredField4 = obj2.getClass().getDeclaredField("mApplicationInfo");
+                declaredField4.setAccessible(true);
+                ApplicationInfo applicationInfo = (ApplicationInfo) declaredField4.get(obj2);
+                applicationInfo.publicSourceDir = path;
+                applicationInfo.sourceDir = path;
+            }
+        } catch (Exception e) {
+            System.err.println("replace app failed.");
+            e.printStackTrace();
+        }
     }
 
     private void hookSignatureByXposed(XC_LoadPackage.LoadPackageParam lpparam, final String originalSignature) {
