@@ -41,13 +41,10 @@ public class PackageSignatureHooker implements IXposedHookLoadPackage {
             return;
         }
 
-        try {
-            context.getAssets().open("xpatch_asset/original_app.apk");
-            hookSignatureByXposed(lpparam, originalSignature);  //不稳定  暂时不使用
-            replaceApp(context);
-        } catch (FileNotFoundException e) {
-            hookSignatureByProxy(lpparam, originalSignature, context);
-        }
+        // hookSignatureByXposed(lpparam, originalSignature);  //不稳定  暂时不使用
+        hookSignatureByProxy(lpparam, originalSignature, context);
+
+        replaceApp(context);
     }
 
     private void replaceApp(Context context) {
@@ -82,9 +79,7 @@ public class PackageSignatureHooker implements IXposedHookLoadPackage {
                 applicationInfo.publicSourceDir = path;
                 applicationInfo.sourceDir = path;
             }
-        } catch (Exception e) {
-            System.err.println("replace app failed.");
-            e.printStackTrace();
+        } catch (Exception ignored) {
         }
     }
 
