@@ -35,7 +35,6 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
-import static com.wind.xposed.entry.XposedModuleEntry.getAppContext;
 import static com.wind.xposed.entry.XposedModuleEntry.init;
 
 /**
@@ -195,7 +194,7 @@ public class XpatchProxyApplication extends Application {
             PackageManager pm = c.getPackageManager();
             PackageInfo pi = pm.getPackageInfo(c.getPackageName(), PackageManager.GET_ACTIVITIES);
             if (pi != null) {
-                String versionCode = pi.versionCode + "";
+                String versionCode = pi.getLongVersionCode() + "";
                 String versionName = TextUtils.isEmpty(pi.versionName) ? "没有版本名称" : pi.versionName;
                 infos.put("versionCode", versionCode);
                 infos.put("versionName", versionName);

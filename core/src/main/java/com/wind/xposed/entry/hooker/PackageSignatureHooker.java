@@ -7,14 +7,11 @@ import android.content.pm.PackageManager;
 import android.content.pm.Signature;
 import android.os.Build;
 
-// import com.lody.whale.WhaleRuntime;
 import com.wind.xposed.entry.XposedModuleEntry;
 import com.wind.xposed.entry.util.FileUtils;
+import com.wind.xposed.entry.util.IO;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
@@ -26,6 +23,8 @@ import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
+// import com.lody.whale.WhaleRuntime;
 
 public class PackageSignatureHooker implements IXposedHookLoadPackage {
 
@@ -49,36 +48,25 @@ public class PackageSignatureHooker implements IXposedHookLoadPackage {
 
     private void replaceApp(Context context) {
         try {
-            File fileStreamPath = context.getFileStreamPath("base.apk");
-            if (!fileStreamPath.exists()) {
-                InputStream open = context.getAssets().open("xpatch_asset/original_app.apk");
-                FileOutputStream fileOutputStream = new FileOutputStream(fileStreamPath);
-                byte[] bArr = new byte[1024];
-                for (int i = 0; i != -1; i = open.read(bArr)) {
-                    fileOutputStream.write(bArr, 0, i);
-                    fileOutputStream.flush();
-                }
-                open.close();
-                fileOutputStream.close();
-            }
-            if (fileStreamPath != null && fileStreamPath.exists()) {
-                String path = fileStreamPath.getPath();
-                context.getClassLoader();
-                Field declaredField = ClassLoader.getSystemClassLoader().loadClass("android.app.ActivityThread").getDeclaredField("sCurrentActivityThread");
-                declaredField.setAccessible(true);
-                Object obj = declaredField.get((Object) null);
-                Field declaredField2 = obj.getClass().getDeclaredField("mPackages");
-                declaredField2.setAccessible(true);
-                Object obj2 = ((WeakReference<?>) ((Map<?, ?>) declaredField2.get(obj)).get(context.getPackageName())).get();
-                Field declaredField3 = obj2.getClass().getDeclaredField("mAppDir");
-                declaredField3.setAccessible(true);
-                declaredField3.set(obj2, path);
-                Field declaredField4 = obj2.getClass().getDeclaredField("mApplicationInfo");
-                declaredField4.setAccessible(true);
-                ApplicationInfo applicationInfo = (ApplicationInfo) declaredField4.get(obj2);
-                applicationInfo.publicSourceDir = path;
-                applicationInfo.sourceDir = path;
-            }
+            File originalApp = context.getFileStreamPath("base.apk");
+            if (!originalApp.exists())
+                IO.copyFile(context.getAssets().open("xpatch_asset/original_app.apk"), originalApp);
+            String path = originalApp.getPath();
+            context.getClassLoader();
+            Field declaredField = ClassLoader.getSystemClassLoader().loadClass("android.app.ActivityThread").getDeclaredField("sCurrentActivityThread");
+            declaredField.setAccessible(true);
+            Object obj = declaredField.get((Object) null);
+            Field declaredField2 = obj.getClass().getDeclaredField("mPackages");
+            declaredField2.setAccessible(true);
+            Object obj2 = ((WeakReference<?>) ((Map<?, ?>) declaredField2.get(obj)).get(context.getPackageName())).get();
+            Field declaredField3 = obj2.getClass().getDeclaredField("mAppDir");
+            declaredField3.setAccessible(true);
+            declaredField3.set(obj2, path);
+            Field declaredField4 = obj2.getClass().getDeclaredField("mApplicationInfo");
+            declaredField4.setAccessible(true);
+            ApplicationInfo applicationInfo = (ApplicationInfo) declaredField4.get(obj2);
+            applicationInfo.publicSourceDir = path;
+            applicationInfo.sourceDir = path;
         } catch (Exception ignored) {
         }
     }

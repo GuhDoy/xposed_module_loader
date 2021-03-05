@@ -8,8 +8,8 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
-import com.swift.sandhook.xposedcompat.XposedCompat;
 import com.wind.xposed.entry.util.FileUtils;
+import com.wind.xposed.entry.util.IO;
 import com.wind.xposed.entry.util.PackageNameCache;
 import com.wind.xposed.entry.util.SharedPrefUtils;
 import com.wind.xposed.entry.util.XLog;
@@ -41,7 +41,7 @@ public class XposedModuleEntry {
 
     private static AtomicBoolean hasInited = new AtomicBoolean(false);
 
-    private static final String DIR_BASE = XposedCompat.context.getExternalFilesDir(null).getAbsolutePath();
+    private static File moduleFile;
 
     private static final String XPOSED_MODULE_FILE_PATH = "xposed_config/modules.list";
 
@@ -77,6 +77,8 @@ public class XposedModuleEntry {
 
         // 加载代码本身的hook功能，一般情况下用不到
         XposedModuleLoader.startInnerHook(context.getApplicationInfo(), originClassLoader);
+
+        moduleFile = new File(appContext.getExternalFilesDir(null), XPOSED_MODULE_FILE_PATH);
 
         List<String> modulePathList = new ArrayList<>();
 
@@ -157,7 +159,7 @@ public class XposedModuleEntry {
         List<String> packageNameList = loadPackageNameListFromFile(true);
         List<Pair<String, String>> installedModuleList = new ArrayList<>();
 
-        boolean configFileExist = configFileExist();
+        boolean configFileExist = moduleFile.exists();
 
         List<PackageInfo> packageInfoList = pm.getInstalledPackages(PackageManager.GET_META_DATA);
         for (PackageInfo pkg : packageInfoList) {
@@ -184,12 +186,15 @@ public class XposedModuleEntry {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                File moduleFile = new File(DIR_BASE, XPOSED_MODULE_FILE_PATH);
                 if (!moduleFile.exists()) {
                     moduleFile.getParentFile().mkdirs();
-                    String original_module_list = FileUtils.readTextFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini");
+                    String original_module_list = FileUtils.readTextFromAssets(appContext, "xpatch_asset/original_module_list.ini");
                     if (original_module_list != null)
-                        FileUtils.copyFileFromAssets(XposedCompat.context, "xpatch_asset/original_module_list.ini", moduleFile.getPath());
+                        try {
+                            IO.copyFile(appContext.getAssets().open("xpatch_asset/original_module_list.ini"), moduleFile);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                 }
 
                 List<String> savedPackageNameList = loadPackageNameListFromFile(false);
@@ -211,7 +216,6 @@ public class XposedModuleEntry {
 
     // 从sd卡中加载指定文件，以加载指定的xposed module
     private static List<String> loadPackageNameListFromFile(boolean loadActivedPackages) {
-        File moduleFile = new File(DIR_BASE, XPOSED_MODULE_FILE_PATH);
         if (!moduleFile.exists()) {
             return null;
         }
@@ -259,8 +263,6 @@ public class XposedModuleEntry {
             return;
         }
 
-        File moduleFile = new File(DIR_BASE, XPOSED_MODULE_FILE_PATH);
-
         if (!moduleFile.getParentFile().exists()) {
             moduleFile.getParentFile().mkdirs();
         }
@@ -283,11 +285,6 @@ public class XposedModuleEntry {
             closeStream(outputStream);
             closeStream(writer);
         }
-    }
-
-    private static boolean configFileExist() {
-        File moduleConfigFile = new File(DIR_BASE, XPOSED_MODULE_FILE_PATH);
-        return moduleConfigFile.exists();
     }
 
     private static void closeStream(Closeable closeable) {
