@@ -21,18 +21,18 @@ public class IO {
             inputStream = new FileInputStream((FileDescriptor) input);
         else if (input instanceof String)
             inputStream = new FileInputStream((String) input);
-        else throw new IOException("unknown inputType");
+        else throw new IOException("unknown input type");
 
         FileOutputStream fileOutputStream;
-        if (input instanceof FileOutputStream)
-            fileOutputStream = (FileOutputStream) input;
+        if (output instanceof FileOutputStream)
+            fileOutputStream = (FileOutputStream) output;
         else if (output instanceof File)
             fileOutputStream = new FileOutputStream((File) output);
         else if (output instanceof FileDescriptor)
             fileOutputStream = new FileOutputStream((FileDescriptor) output);
         else if (output instanceof String)
             fileOutputStream = new FileOutputStream((String) output);
-        else throw new IOException("unknown outputType");
+        else throw new IOException("unknown output type");
 
         copyFile(inputStream, fileOutputStream);
     }

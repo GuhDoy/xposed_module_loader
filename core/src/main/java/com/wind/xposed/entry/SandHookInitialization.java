@@ -32,7 +32,7 @@ public class SandHookInitialization {
         boolean isDebug = XpatchUtils.isApkDebugable(context);
 
         try {
-            Class SandHookConfigClaszz = Class.forName(SandHookConfigClassName);
+            Class<?> SandHookConfigClaszz = Class.forName(SandHookConfigClassName);
             Field DEBUG_field = SandHookConfigClaszz.getDeclaredField("DEBUG");
             DEBUG_field.setAccessible(true);
             DEBUG_field.set(null, isDebug);
@@ -43,7 +43,7 @@ public class SandHookInitialization {
         String XposedCompatClassName = "com.swift.sandhook.xposedcompat.XposedCompat";
 
         try {
-            Class XposedCompatgClaszz = Class.forName(XposedCompatClassName);
+            Class<?> XposedCompatgClaszz = Class.forName(XposedCompatClassName);
 
             Field cacheDir_field = XposedCompatgClaszz.getDeclaredField("cacheDir");
             cacheDir_field.setAccessible(true);
